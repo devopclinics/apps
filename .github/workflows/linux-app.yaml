@@ -34,4 +34,4 @@ jobs:
 
       # Step 5: Push the Docker image to Docker Hub
       - name: Push Docker Image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/linux-labs:${{ github.sha }}
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/linux-labs:latest
