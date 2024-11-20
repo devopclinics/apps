@@ -2,23 +2,30 @@ from flask import Flask, send_from_directory, request, jsonify
 import subprocess
 import json
 import os
+import yaml  # Import the yaml module to parse YAML
 
 app = Flask(__name__)
 
-# Path to the questions and config file, mounted as a ConfigMap
-QUESTIONS_FILE_PATH = '/app/config/questions.json'
+# Paths to the questions and config file, mounted as a ConfigMap
+QUESTIONS_FILE_PATH = '/app/config/questions.json'  # This refers to the YAML content from the ConfigMap
 CONFIG_FILE_PATH = '/app/config/title'
 
 # Load questions from the ConfigMap file
 def load_questions():
     try:
         with open(QUESTIONS_FILE_PATH) as f:
-            return json.load(f)
+            # Parse the YAML content to convert it into a list of dictionaries
+            questions = yaml.safe_load(f)
+            if not isinstance(questions, list):
+                print("Error: Questions are not in the expected list format.")
+                return []
+            print(f"Loaded {len(questions)} questions successfully.")
+            return questions
     except FileNotFoundError:
         print("Error: questions.json file not found.")
         return []
-    except json.JSONDecodeError:
-        print("Error: Failed to parse questions.json.")
+    except yaml.YAMLError:
+        print("Error: Failed to parse questions.yaml content.")
         return []
 
 # Initialize questions and state variables
@@ -59,6 +66,10 @@ def home():
 def get_question():
     global current_question_index, questions
     questions = load_questions()  # Reload questions dynamically
+    if len(questions) == 0:
+        print("Error: No questions available.")
+        return jsonify({"question": None, "message": "No questions available."})
+
     print(f"Current question index: {current_question_index}, Total questions: {len(questions)}")
     if current_question_index < len(questions):
         return jsonify({"question": questions[current_question_index]["question"]})
@@ -70,6 +81,9 @@ def get_question():
 def execute_command():
     global current_question_index, score, questions
     questions = load_questions()  # Reload questions dynamically
+
+    if len(questions) == 0:
+        return jsonify({"output": "No questions available!", "done": True})
 
     if current_question_index >= len(questions):
         return jsonify({"output": "All questions completed!", "done": True})
@@ -103,7 +117,11 @@ def execute_command():
 def get_score():
     global score, questions
     total_questions = len(questions)
-    percentage = (score / total_questions) * 100 if total_questions > 0 else 0
+    if total_questions == 0:
+        print("No questions available to calculate score.")
+        return jsonify({"score": 0, "message": "No questions available to calculate score."})
+
+    percentage = (score / total_questions) * 100
     if percentage >= 80:
         message = "Thumbs up! You passed with a score of {:.2f}%!".format(percentage)
     else:
@@ -117,7 +135,6 @@ def restart_lab():
     global current_question_index, score
     current_question_index = 0
     score = 0
-    questions = load_questions()  # Reload questions
     print("Lab restarted. Current question index reset to 0.")
     reset_environment()  # Reset the environment
     return jsonify({"message": "Lab restarted. Good luck!"})
@@ -127,6 +144,9 @@ def restart_lab():
 def get_hint():
     global current_question_index, questions
     questions = load_questions()  # Reload questions dynamically
+    if len(questions) == 0:
+        return jsonify({"hint": None, "message": "No questions available."})
+
     if current_question_index < len(questions):
         hint = questions[current_question_index]["answer"]
         return jsonify({"hint": hint})
@@ -137,6 +157,9 @@ def get_hint():
 @app.route("/all-questions", methods=["GET"])
 def view_all_questions():
     questions = load_questions()  # Reload questions dynamically
+    if len(questions) == 0:
+        return jsonify({"questions": [], "message": "No questions available."})
+
     question_list = [q["question"] for q in questions]
     return jsonify({"questions": question_list})
 
