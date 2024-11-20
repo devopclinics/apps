@@ -2,18 +2,18 @@ from flask import Flask, send_from_directory, request, jsonify
 import subprocess
 import json
 import os
-import yaml  # Import the yaml module to parse YAML
+import yaml  # Import PyYAML for parsing YAML
 
 app = Flask(__name__)
 
 # Paths to the questions and config file, mounted as a ConfigMap
-QUESTIONS_FILE_PATH = '/app/config/questions.json'  # This refers to the YAML content from the ConfigMap
+QUESTIONS_FILE_PATH = '/app/config/questions.json'  # Ensure this path is correct
 CONFIG_FILE_PATH = '/app/config/title'
 
 # Load questions from the ConfigMap file
 def load_questions():
     try:
-        with open(QUESTIONS_FILE_PATH) as f:
+        with open(QUESTIONS_FILE_PATH, 'r') as f:
             # Parse the YAML content to convert it into a list of dictionaries
             questions = yaml.safe_load(f)
             if not isinstance(questions, list):
@@ -22,10 +22,10 @@ def load_questions():
             print(f"Loaded {len(questions)} questions successfully.")
             return questions
     except FileNotFoundError:
-        print("Error: questions.json file not found.")
+        print("Error: questions.json file not found at path:", QUESTIONS_FILE_PATH)
         return []
-    except yaml.YAMLError:
-        print("Error: Failed to parse questions.yaml content.")
+    except yaml.YAMLError as e:
+        print("Error: Failed to parse questions.yaml content. Details:", str(e))
         return []
 
 # Initialize questions and state variables
@@ -36,10 +36,10 @@ score = 0
 # Load the config title from the ConfigMap file
 def load_config():
     try:
-        with open(CONFIG_FILE_PATH) as f:
+        with open(CONFIG_FILE_PATH, 'r') as f:
             return f.read().strip()
     except FileNotFoundError:
-        print("Error: title file not found.")
+        print("Error: title file not found at path:", CONFIG_FILE_PATH)
         return "Labs"
     except Exception as e:
         print(f"Error reading title: {e}")
@@ -53,6 +53,7 @@ def reset_environment():
         subprocess.run("sudo groupadd adminteam", shell=True)
         subprocess.run("sudo useradd developer", shell=True)
         subprocess.run("echo 'developer:password123' | sudo chpasswd", shell=True)
+        print("Environment reset successfully.")
     except Exception as e:
         print(f"Error resetting environment: {str(e)}")
 
