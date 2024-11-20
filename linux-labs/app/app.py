@@ -5,7 +5,7 @@ import subprocess
 
 app = Flask(__name__)
 
-# Path to the questions and config file, mounted as a ConfigMap
+# Paths to the questions and config file, mounted as a ConfigMap
 QUESTIONS_FILE_PATH = '/app/config/questions.json'
 CONFIG_FILE_PATH = '/app/config/title'
 
@@ -20,11 +20,6 @@ def load_questions():
     except json.JSONDecodeError:
         print("Error: Failed to parse questions.json.")
         return []
-    
-# Initialize questions and state variables
-questions = load_questions()
-current_question_index = 0
-score = 0
 
 # Load the config title from the ConfigMap file
 def load_config():
@@ -37,6 +32,11 @@ def load_config():
     except Exception as e:
         print(f"Error reading title: {e}")
         return "Labs"
+
+# Initialize questions and state variables
+questions = load_questions()
+current_question_index = 0
+score = 0
 
 # Helper function to reset and set up the environment
 def reset_environment():
@@ -142,5 +142,3 @@ def get_config():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-
-
