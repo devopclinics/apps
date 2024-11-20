@@ -1,11 +1,11 @@
 from flask import Flask, send_from_directory, request, jsonify
+import subprocess
 import json
 import os
-import subprocess
 
 app = Flask(__name__)
 
-# Paths to the questions and config file, mounted as a ConfigMap
+# Path to the questions and config file, mounted as a ConfigMap
 QUESTIONS_FILE_PATH = '/app/config/questions.json'
 CONFIG_FILE_PATH = '/app/config/title'
 
@@ -21,6 +21,11 @@ def load_questions():
         print("Error: Failed to parse questions.json.")
         return []
 
+# Initialize questions and state variables
+questions = load_questions()
+current_question_index = 0
+score = 0
+
 # Load the config title from the ConfigMap file
 def load_config():
     try:
@@ -32,11 +37,6 @@ def load_config():
     except Exception as e:
         print(f"Error reading title: {e}")
         return "Labs"
-
-# Initialize questions and state variables
-questions = load_questions()
-current_question_index = 0
-score = 0
 
 # Helper function to reset and set up the environment
 def reset_environment():
@@ -59,6 +59,7 @@ def home():
 def get_question():
     global current_question_index, questions
     questions = load_questions()  # Reload questions dynamically
+    print(f"Current question index: {current_question_index}, Total questions: {len(questions)}")
     if current_question_index < len(questions):
         return jsonify({"question": questions[current_question_index]["question"]})
     else:
@@ -91,8 +92,10 @@ def execute_command():
 
         # Move to the next question
         current_question_index += 1
+        print(f"Score: {score}, Current question index: {current_question_index}")
         return jsonify({"output": output + "\n" + feedback, "done": False})
     except Exception as e:
+        print(f"Error executing command: {str(e)}")
         return jsonify({"output": f"Error: {str(e)}", "done": False}), 500
 
 # Route to calculate and return the final score
@@ -100,11 +103,12 @@ def execute_command():
 def get_score():
     global score, questions
     total_questions = len(questions)
-    percentage = (score / total_questions) * 100
+    percentage = (score / total_questions) * 100 if total_questions > 0 else 0
     if percentage >= 80:
         message = "Thumbs up! You passed with a score of {:.2f}%!".format(percentage)
     else:
         message = "You scored {:.2f}%. Please review and try again.".format(percentage)
+    print(f"Score calculated: {percentage}%")
     return jsonify({"score": percentage, "message": message})
 
 # Route to restart the lab
@@ -113,6 +117,8 @@ def restart_lab():
     global current_question_index, score
     current_question_index = 0
     score = 0
+    questions = load_questions()  # Reload questions
+    print("Lab restarted. Current question index reset to 0.")
     reset_environment()  # Reset the environment
     return jsonify({"message": "Lab restarted. Good luck!"})
 
@@ -138,6 +144,7 @@ def view_all_questions():
 @app.route("/config", methods=["GET"])
 def get_config():
     title = load_config()
+    print(f"Config title: {title}")
     return jsonify({"title": title})
 
 if __name__ == "__main__":
